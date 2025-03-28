@@ -1,23 +1,31 @@
 ﻿using System;
+using PriorityQueue;
 using System.Collections.Generic;
 
 public class AlarmManager
 {
-    // Priority queue with Alarm objects and DateTime as the priority
-    private PriorityQueue<Alarm, DateTime> alarmQueue = new PriorityQueue<Alarm, DateTime>();
+    // Use only one type argument since your queue accepts a single type
+    private SortedArrayPriorityQueue<PriorityItem<Alarm>> alarmQueue;
+
+    public AlarmManager(int size)
+    {
+        alarmQueue = new SortedArrayPriorityQueue<PriorityItem<Alarm>>(size);
+    }
 
     // Add an alarm to the queue
     public void AddAlarm(Alarm alarm)
     {
-        alarmQueue.Enqueue(alarm, alarm.Time);
+        // Wrap the alarm and priority together in PriorityItem
+        var alarmItem = new PriorityItem<Alarm>(alarm, (int)alarm.Time.Ticks);
+        alarmQueue.Add(alarmItem, (int)alarm.Time.Ticks);  // Use Ticks as the priority
     }
 
-    // Get the next alarm without removing it (Peek)
+    // Get the next alarm without removing it
     public Alarm GetNextAlarm()
     {
-        if (alarmQueue.Count > 0)
+        if (!alarmQueue.IsEmpty())
         {
-            return alarmQueue.Peek();
+            return alarmQueue.Head().Item;  // Extract the Alarm object
         }
         return null;
     }
@@ -25,13 +33,15 @@ public class AlarmManager
     // Remove and return the next alarm
     public Alarm RemoveNextAlarm()
     {
-        if (alarmQueue.Count > 0)
+        if (!alarmQueue.IsEmpty())
         {
-            return alarmQueue.Dequeue();
+            var nextAlarm = alarmQueue.Head().Item;
+            alarmQueue.Remove();
+            return nextAlarm;
         }
         return null;
     }
 
     // Check if there are alarms in the queue
-    public bool HasAlarms => alarmQueue.Count > 0;
+    public bool HasAlarms => !alarmQueue.IsEmpty();
 }

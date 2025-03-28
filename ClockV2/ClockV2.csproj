@@ -53,6 +53,12 @@
     <Compile Include="AlarmManager.cs" />
     <Compile Include="Helpers\ClockDrawingHelper.cs" />
     <Compile Include="Presenter\ClockPresenter.cs" />
+    <Compile Include="View\AlarmDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\AlarmDialog.Designer.cs">
+      <DependentUpon>AlarmDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="View\ClockView.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -62,6 +68,9 @@
     <Compile Include="Model\ClockModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="View\AlarmDialog.resx">
+      <DependentUpon>AlarmDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="View\ClockView.resx">
       <DependentUpon>ClockView.cs</DependentUpon>
     </EmbeddedResource>

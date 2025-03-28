@@ -3,17 +3,15 @@
 public class Alarm : IComparable<Alarm>
 {
     public DateTime Time { get; set; }
-    public string Label { get; set; } = "";
-    public bool IsRecurring { get; set; }
-    public bool IsActive { get; set; } = true;
+    public string Message { get; set; }
 
-    public Alarm(DateTime time, string label, bool isRecurring = false)
+    public Alarm(DateTime time, string message)
     {
         Time = time;
-        Label = label;
-        IsRecurring = isRecurring;
+        Message = message;
     }
 
+    // Compare alarms by their time for sorting
     public int CompareTo(Alarm other)
     {
         if (other == null) return 1;
@@ -22,8 +20,6 @@ public class Alarm : IComparable<Alarm>
 
     public override string ToString()
     {
-        string recurrence = IsRecurring ? "Recurring" : "One-time";
-        string status = IsActive ? "Active" : "Inactive";
-        return $"{Time:G} - {Label} ({recurrence}, {status})";
+        return $"{Time}: {Message}";
     }
 }
