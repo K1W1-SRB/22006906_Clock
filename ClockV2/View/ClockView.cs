@@ -1,5 +1,6 @@
 ﻿using ClockV2.Helpers;
 using ClockV2.Presenter;
+using ClockV2.View;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,35 +13,12 @@ namespace ClockV2
         private ClockPresenter presenter;
         private readonly ClockDrawingHelper drawingHelper = new ClockDrawingHelper();
         private DateTime currentTime;
-        private AlarmManager alarmManager;
+        private List<Alarm> alarms = new List<Alarm>();  // Use a List instead of Queue
         private Timer alarmCheckTimer;
-
-        private Queue<Alarm> alarmQueue = new Queue<Alarm>();
 
         public ClockView()
         {
             InitializeComponent();
-
-
-            // btn_AddAlarm
-
-            this.btn_AddAlarm.Name = "btn_AddAlarm";
-           
-            this.btn_AddAlarm.TabIndex = 4;
-            this.btn_AddAlarm.Text = "Add Alarm";
-            this.btn_AddAlarm.UseVisualStyleBackColor = true;
-
-            this.btn_AddAlarm.Click += new System.EventHandler(this.Btn_AddAlarm_Click);  // Attach the event
-
-            // dateTimePicker_Alarm
-            this.dateTimePicker_Alarm.Format = System.Windows.Forms.DateTimePickerFormat.Time;
-           
-            this.dateTimePicker_Alarm.Name = "dateTimePicker_Alarm";
-         
-            this.dateTimePicker_Alarm.TabIndex = 8;
-            this.dateTimePicker_Alarm.Value = new System.DateTime(2025, 3, 28, 11, 57, 27, 0);
-
-            this.dateTimePicker_Alarm.ValueChanged += new System.EventHandler(this.dateTimePicker_Alarm_ValueChanged);
 
             // Enable double buffering to avoid flicker
             Panel_Clock.GetType()
@@ -49,95 +27,121 @@ namespace ClockV2
 
             currentTime = DateTime.Now;
 
-            // Initialize AlarmManager with capacity for 50 alarms
-            alarmManager = new AlarmManager(50);
-
             // Timer to periodically check for alarms
             alarmCheckTimer = new Timer
             {
                 Interval = 1000  // Check every second
             };
 
-            // Attach event handlers
             alarmCheckTimer.Tick += timer_Tick;
             alarmCheckTimer.Start();
         }
 
         private void ClockView_Load(object sender, EventArgs e)
         {
-            // Initialize the alarm display with any preloaded data
             UpdateAlarmList();
         }
 
-        private void Btn_AddAlarm_Click(object sender, EventArgs e)
+        private void btn_AddAlarm_Click_1(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txt_AlarmName.Text))
+            using (var dialog = new AlarmDialog())
             {
-                MessageBox.Show("Please enter an alarm name.");
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    string alarmName = dialog.AlarmName;
+                    DateTime alarmTime = dialog.AlarmTime;
+
+                    alarms.Add(new Alarm(alarmTime, alarmName));
+
+                    UpdateAlarmList();
+                }
+            }
+        }
+
+
+        // ✅ Edit an existing alarm
+        private void Btn_EditAlarm_Click(object sender, EventArgs e)
+        {
+            if (listBox_Alarms.SelectedIndex == -1)
+            {
+                MessageBox.Show("Please select an alarm to edit.", "No Alarm Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            var alarm = new Alarm(dateTimePicker_Alarm.Value, txt_AlarmName.Text);
+            int index = listBox_Alarms.SelectedIndex;
+            var selectedAlarm = alarms[index];
 
-            alarmQueue.Enqueue(alarm);
+            using (var dialog = new AlarmDialog(selectedAlarm.Message, selectedAlarm.Time))
+            {
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    // Update the alarm with new values
+                    alarms[index] = new Alarm(dialog.AlarmTime, dialog.AlarmName);
+
+                    UpdateAlarmList();
+                }
+            }
+        }
+
+
+        // ✅ Remove an alarm
+        private void Btn_RemoveAlarm_Click(object sender, EventArgs e)
+        {
+            if (listBox_Alarms.SelectedIndex == -1)
+            {
+                MessageBox.Show("Please select an alarm to remove.", "No Alarm Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int index = listBox_Alarms.SelectedIndex;
+            alarms.RemoveAt(index);
             UpdateAlarmList();
         }
 
+        // ✅ Display alarms in ListBox
         private void UpdateAlarmList()
         {
-            // Null-checks to prevent exceptions
             if (listBox_Alarms == null || lbl_NextAlarm == null) return;
 
             listBox_Alarms.Items.Clear();
 
-            foreach (var alarm in alarmQueue)
+            // Sort alarms by time
+            alarms = alarms.OrderBy(a => a.Time).ToList();
+
+            foreach (var alarm in alarms)
             {
                 listBox_Alarms.Items.Add($"{alarm.Message} - {alarm.Time:HH:mm:ss}");
             }
 
-            var nextAlarm = alarmQueue.OrderBy(a => a.Time).FirstOrDefault();
+            var nextAlarm = alarms.FirstOrDefault();
 
             lbl_NextAlarm.Text = nextAlarm != null
                 ? $"Next Alarm: {nextAlarm.Message} at {nextAlarm.Time:HH:mm:ss}"
                 : "Next Alarm: None";
         }
 
-
-        // Check for triggered alarms every second
+        // ✅ Check for triggered alarms every second
         private void CheckAlarms()
         {
             var currentTime = DateTime.Now;
 
-            if (alarmQueue.Count > 0 && alarmQueue.Peek().Time <= currentTime)
-            {
-                var triggeredAlarm = alarmQueue.Dequeue();
-                MessageBox.Show($"ALARM: {triggeredAlarm.Message}", "Alarm Triggered", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            // Find and trigger alarms
+            var triggeredAlarms = alarms.Where(a => a.Time <= currentTime).ToList();
 
-                UpdateAlarmList();
+            foreach (var alarm in triggeredAlarms)
+            {
+                MessageBox.Show($"ALARM: {alarm.Message}", "Alarm Triggered", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                alarms.Remove(alarm);
             }
+
+            UpdateAlarmList();
         }
 
-        // Timer event to check alarms
+        // ✅ Timer event to check alarms and redraw clock
         private void timer_Tick(object sender, EventArgs e)
         {
-            Invalidate();  // Redraw clock
+            Invalidate();
             CheckAlarms();
-        }
-
-        private void AlarmCheckTimer_Tick(object sender, EventArgs e)
-        {
-            var nextAlarm = alarmManager.GetNextAlarm();
-
-            if (nextAlarm != null && DateTime.Now >= nextAlarm.Time)
-            {
-                MessageBox.Show($"Alarm Triggered: {nextAlarm.Message}", "Alarm!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                // Remove the triggered alarm
-                alarmManager.RemoveNextAlarm();
-
-                // Refresh the alarm list
-                UpdateAlarmList();
-            }
         }
 
         public void SetPresenter(ClockPresenter presenter)
@@ -148,7 +152,7 @@ namespace ClockV2
         public void UpdateClock(DateTime currentTime)
         {
             this.currentTime = currentTime;
-            Panel_Clock.Invalidate(); // Trigger a redraw of the panel
+            Panel_Clock.Invalidate();
         }
 
         private void Panel_Clock_Paint(object sender, PaintEventArgs e)
@@ -159,19 +163,6 @@ namespace ClockV2
             drawingHelper.DrawClock(g, currentTime, Panel_Clock.Width, Panel_Clock.Height);
         }
 
-        private void txt_AlarmName_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void dateTimePicker_Alarm_ValueChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
-        {
-
-        }
+       
     }
 }
