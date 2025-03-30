@@ -92,6 +92,7 @@
             this.btn_EditAlarm.TabIndex = 8;
             this.btn_EditAlarm.Text = "Edit Alarm";
             this.btn_EditAlarm.UseVisualStyleBackColor = true;
+            this.btn_EditAlarm.Click += new System.EventHandler(this.btn_EditAlarm_Click);
             // 
             // btn_cancel
             // 

@@ -4,7 +4,9 @@ using ClockV2.View;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
+using System.IO;  // ✅ Added for File operations
 
 namespace ClockV2
 {
@@ -15,6 +17,9 @@ namespace ClockV2
         private DateTime currentTime;
         private List<Alarm> alarms = new List<Alarm>();  // Use a List instead of Queue
         private Timer alarmCheckTimer;
+
+        // ✅ Add the file path constant
+        private const string AlarmFilePath = "alarms.ics";
 
         public ClockView()
         {
@@ -39,7 +44,12 @@ namespace ClockV2
 
         private void ClockView_Load(object sender, EventArgs e)
         {
-            UpdateAlarmList();
+            DialogResult result = MessageBox.Show("Do you want to load saved alarms?", "Load Alarms", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                LoadAlarmsFromFile();
+            }
         }
 
         private void btn_AddAlarm_Click_1(object sender, EventArgs e)
@@ -58,31 +68,33 @@ namespace ClockV2
             }
         }
 
-
-        // ✅ Edit an existing alarm
-        private void Btn_EditAlarm_Click(object sender, EventArgs e)
+        private void btn_EditAlarm_Click(object sender, EventArgs e)
         {
             if (listBox_Alarms.SelectedIndex == -1)
             {
-                MessageBox.Show("Please select an alarm to edit.", "No Alarm Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Please select an alarm to edit.");
                 return;
             }
 
-            int index = listBox_Alarms.SelectedIndex;
-            var selectedAlarm = alarms[index];
+            int selectedIndex = listBox_Alarms.SelectedIndex;
 
+            // Get the corresponding Alarm object
+            var selectedAlarm = alarms[selectedIndex];
+
+            // Open the dialog with the current alarm details
             using (var dialog = new AlarmDialog(selectedAlarm.Message, selectedAlarm.Time))
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    // Update the alarm with new values
-                    alarms[index] = new Alarm(dialog.AlarmTime, dialog.AlarmName);
+                    // Update the alarm object directly
+                    selectedAlarm.Message = dialog.AlarmName;
+                    selectedAlarm.Time = dialog.AlarmTime;
 
+                    // Refresh the ListBox
                     UpdateAlarmList();
                 }
             }
         }
-
 
         // ✅ Remove an alarm
         private void Btn_RemoveAlarm_Click(object sender, EventArgs e)
@@ -98,10 +110,12 @@ namespace ClockV2
             UpdateAlarmList();
         }
 
-        // ✅ Display alarms in ListBox
         private void UpdateAlarmList()
         {
             if (listBox_Alarms == null || lbl_NextAlarm == null) return;
+
+            // Save current selection
+            int selectedIndex = listBox_Alarms.SelectedIndex;
 
             listBox_Alarms.Items.Clear();
 
@@ -118,6 +132,69 @@ namespace ClockV2
             lbl_NextAlarm.Text = nextAlarm != null
                 ? $"Next Alarm: {nextAlarm.Message} at {nextAlarm.Time:HH:mm:ss}"
                 : "Next Alarm: None";
+
+            // Restore selection after refresh
+            if (selectedIndex >= 0 && selectedIndex < listBox_Alarms.Items.Count)
+            {
+                listBox_Alarms.SelectedIndex = selectedIndex;
+            }
+        }
+
+        private void SaveAlarmsToFile()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("BEGIN:VCALENDAR");
+            sb.AppendLine("VERSION:2.0");
+            sb.AppendLine("PRODID:-//MyClockApp//EN");
+
+            foreach (var alarm in alarms)
+            {
+                sb.AppendLine("BEGIN:VEVENT");
+                sb.AppendLine($"SUMMARY:{alarm.Message}");
+                sb.AppendLine($"DTSTART:{alarm.Time:yyyyMMddTHHmmss}");
+                sb.AppendLine("END:VEVENT");
+            }
+
+            sb.AppendLine("END:VCALENDAR");
+
+            File.WriteAllText(AlarmFilePath, sb.ToString());
+            MessageBox.Show($"Alarms saved to {AlarmFilePath}", "Save Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // ✅ Load alarms from file
+        private void LoadAlarmsFromFile()
+        {
+            if (!File.Exists(AlarmFilePath)) return;
+
+            try
+            {
+                var lines = File.ReadAllLines(AlarmFilePath);
+                alarms.Clear();
+
+                Alarm currentAlarm = null;
+
+                foreach (var line in lines)
+                {
+                    if (line.StartsWith("SUMMARY:"))
+                    {
+                        currentAlarm = new Alarm(DateTime.Now, line.Substring(8));
+                    }
+                    else if (line.StartsWith("DTSTART:") && currentAlarm != null)
+                    {
+                        if (DateTime.TryParseExact(line.Substring(8), "yyyyMMddTHHmmss", null, System.Globalization.DateTimeStyles.None, out var alarmTime))
+                        {
+                            currentAlarm.Time = alarmTime;
+                            alarms.Add(currentAlarm);
+                        }
+                    }
+                }
+
+                UpdateAlarmList();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading alarms: {ex.Message}", "Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // ✅ Check for triggered alarms every second
@@ -144,6 +221,23 @@ namespace ClockV2
             CheckAlarms();
         }
 
+        // ✅ Prompt the user to save alarms when closing the app
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+
+            DialogResult result = MessageBox.Show("Do you want to save your alarms before exiting?", "Save Alarms", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                SaveAlarmsToFile();
+            }
+            else if (result == DialogResult.Cancel)
+            {
+                e.Cancel = true;  // Cancel closing the form
+            }
+        }
+
         public void SetPresenter(ClockPresenter presenter)
         {
             this.presenter = presenter;
@@ -162,7 +256,5 @@ namespace ClockV2
             var g = e.Graphics;
             drawingHelper.DrawClock(g, currentTime, Panel_Clock.Width, Panel_Clock.Height);
         }
-
-       
     }
 }
