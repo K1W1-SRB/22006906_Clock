@@ -15,11 +15,11 @@ namespace ClockV2
         private ClockPresenter presenter;
         private readonly ClockDrawingHelper drawingHelper = new ClockDrawingHelper();
         private DateTime currentTime;
-        private List<Alarm> alarms = new List<Alarm>();  // Use a List instead of Queue
-        private Timer alarmCheckTimer;
+        public List<Alarm> alarms = new List<Alarm>();  // Use a List instead of Queue
+        public Timer alarmCheckTimer;
 
         // ✅ Add the file path constant
-        private const string AlarmFilePath = "alarms.ics";
+        public const string AlarmFilePath = "alarms.ics";
 
         public ClockView()
         {
@@ -42,7 +42,7 @@ namespace ClockV2
             alarmCheckTimer.Start();
         }
 
-        private void ClockView_Load(object sender, EventArgs e)
+        public void ClockView_Load(object sender, EventArgs e)
         {
             DialogResult result = MessageBox.Show("Do you want to load saved alarms?", "Load Alarms", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
@@ -140,7 +140,7 @@ namespace ClockV2
             }
         }
 
-        private void SaveAlarmsToFile()
+        public void SaveAlarmsToFile()
         {
             var sb = new StringBuilder();
             sb.AppendLine("BEGIN:VCALENDAR");
@@ -162,7 +162,7 @@ namespace ClockV2
         }
 
         // ✅ Load alarms from file
-        private void LoadAlarmsFromFile()
+        public void LoadAlarmsFromFile()
         {
             if (!File.Exists(AlarmFilePath)) return;
 
@@ -198,7 +198,7 @@ namespace ClockV2
         }
 
         // ✅ Check for triggered alarms every second
-        private void CheckAlarms()
+        public void CheckAlarms()
         {
             var currentTime = DateTime.Now;
 
