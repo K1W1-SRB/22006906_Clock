@@ -9,7 +9,7 @@ namespace ClockV2.Tests
     [TestFixture]
     public class ClockViewTests
     {
-        private ClockView clockView;
+        public ClockView clockView;
 
         [SetUp]
         public void Setup()

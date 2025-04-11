@@ -19,7 +19,8 @@ namespace ClockV2
         public Timer alarmCheckTimer;
 
         // ✅ Add the file path constant
-        public const string AlarmFilePath = "alarms.ics";
+        public string AlarmFilePath { get; set; } = "alarms.ics";
+
 
         public ClockView()
         {
